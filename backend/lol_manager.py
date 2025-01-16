@@ -20,6 +20,9 @@ for team in teams:
     start_team_record[team]= [0,0]
 # curr.execute("UPDATE Players SET OVERALL = (?) WHERE TRADING IS NULL", (60,))
 # conn.commit()
+def setRecord():
+   for team in teams:
+       start_team_record[team]= [0,0]
 def overallCalc():
     for team in teams:
         for player in teamMap[team]:
@@ -150,7 +153,7 @@ def regular_split_end(year):
         sorted_dict = dict(sorted(team_record.items(), key=lambda item: item[1][0], reverse=True))
         seed = 1
         for team, record in sorted_dict.items():
-            standings.append(str(seed)+ " " + team + " " + str(record[0])+"-"+str(record[1]))
+            standings.append(f"{seed} {team} {record[0]}-{record[1]}")
             if seed<7:
                 playoff_teams.append(team)
             seed+=1
@@ -160,7 +163,7 @@ def regular_split_end(year):
                 curr_MVP = player[0]
                 max = player[1]
         print(year, "MVP is", curr_MVP, "\n")
-        return playoff_teams, curr_MVP, sorted_dict
+        return playoff_teams, curr_MVP, standings
 def playoffs(playoff_teams):
         curr_teams = playoff_teams.copy()
         print("First Round")
@@ -200,11 +203,12 @@ def split(year):
     values["playoff_teams"] = playoff_teams
     values["MVP"] = MVP
     values["standings"] = standings
+    setRecord()
     #simple playoff format, will change eventually to account for various factors but in this simulation the lowest seed always plays the highest seed
     champion = playoffs(playoff_teams)
     values["champion"] = champion[0]
     return values
-@app.route('/data', methods=('GET','POST'))
-def data():
-    values = split(2024)
-    return values
+@app.route('/split/<int:year>', methods=('GET', 'POST'))
+def split_data(year):
+    values = split(year)
+    return json.dumps(values)
