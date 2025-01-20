@@ -2,11 +2,13 @@ import random
 import sqlite3
 import statistics
 import json
-from flask import Flask
+from flask import Flask, jsonify
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 conn = sqlite3.connect("lolmanager.db")
 curr = conn.cursor()
+curr.execute("DELETE FROM History")
+conn.commit()
 team = "HLE"
 role = "Top"
 #curr.execute("DELETE FROM Players WHERE NAME IS NULL", ())
@@ -194,6 +196,23 @@ def playoffs(playoff_teams):
         print(res1[0], "wins", res1[2])
         curr_teams.remove(res1[1])
         return curr_teams
+def save_season_results(year, mvp, standings, champion):
+    conn = sqlite3.connect("lolmanager.db")
+    curr = conn.cursor()
+    # Prepare the data for insertion
+    curr.execute("""
+        INSERT INTO History (year, mvp, standings, champion)
+        VALUES (?, ?, ?, ?)
+    """, (
+        year,
+        mvp,
+        json.dumps(standings),  # Convert list to JSON string
+        champion
+    ))
+
+    conn.commit()
+    curr.close()
+    conn.close()
 def split(year):
     values = {}
     print(year, "split")
@@ -203,12 +222,35 @@ def split(year):
     values["playoff_teams"] = playoff_teams
     values["MVP"] = MVP
     values["standings"] = standings
+    champion = playoffs(playoff_teams)
+    save_season_results(year, MVP, standings, champion[0])
     setRecord()
     #simple playoff format, will change eventually to account for various factors but in this simulation the lowest seed always plays the highest seed
-    champion = playoffs(playoff_teams)
     values["champion"] = champion[0]
     return values
 @app.route('/split/<int:year>', methods=('GET', 'POST'))
 def split_data(year):
     values = split(year)
     return json.dumps(values)
+@app.route('/season_history', methods=['GET'])
+def get_season_history():
+    conn = sqlite3.connect("lolmanager.db")
+    curr = conn.cursor()
+
+    # Retrieve all seasons from the database
+    curr.execute("SELECT * FROM History ORDER BY year DESC")
+    seasons = curr.fetchall()
+
+    # Convert the result into a list of dictionaries
+    seasons_data = []
+    for season in seasons:
+        seasons_data.append({
+            "year": season[0],
+            "mvp": season[1],
+            "champion": season[2],
+            "standings": json.loads(season[3])
+        })
+
+    conn.close()
+    
+    return jsonify(seasons_data)
