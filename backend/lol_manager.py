@@ -203,7 +203,6 @@ def save_season_results(year, mvp, standings, champion):
     conn.close()
 def split(year):
     values = {}
-    print(year, "split")
     playoff_teams, MVP, standings = regular_split_end(year)
     values["playoff_teams"] = playoff_teams
     values["MVP"] = MVP
