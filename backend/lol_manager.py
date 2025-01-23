@@ -166,36 +166,22 @@ def regular_split_end(year):
             if player[1]>max:
                 curr_MVP = player[0]
                 max = player[1]
-        print(year, "MVP is", curr_MVP, "\n")
         return playoff_teams, curr_MVP, standings
 def playoffs(playoff_teams):
         curr_teams = playoff_teams.copy()
-        print("First Round")
-        print(curr_teams[2], curr_teams[5])
         res1 = BO5(curr_teams[2], curr_teams[5])
-        print(res1[0], "wins", res1[2])
-        print(curr_teams[3], curr_teams[4])
         res2 = BO5(curr_teams[3], curr_teams[4])
-        print(res2[0], "wins", res2[2])
+        #remove losers
         curr_teams.remove(res1[1])
         curr_teams.remove(res2[1])
-        print()
-
-        print("Second Round")
-        print(curr_teams[0], curr_teams[3])
+        #remove losers
         res1 = BO5(curr_teams[0], curr_teams[3])
-        print(res1[0], "wins", res1[2])
-        print(curr_teams[1], curr_teams[2])
         res2 = BO5(curr_teams[1], curr_teams[2])
-        print(res2[0], "wins", res2[2])
+        
         curr_teams.remove(res1[1])
         curr_teams.remove(res2[1])
-        print()
-
-        print("Finals")
-        print(curr_teams[0], "vs", curr_teams[1])
+        #finals
         res1 = BO5(curr_teams[0], curr_teams[1])
-        print(res1[0], "wins", res1[2])
         curr_teams.remove(res1[1])
         return curr_teams
 def save_season_results(year, mvp, standings, champion):
