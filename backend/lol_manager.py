@@ -11,46 +11,48 @@ curr.execute("DELETE FROM History")
 conn.commit()
 team = "HLE"
 role = "Top"
-#curr.execute("DELETE FROM Players WHERE NAME IS NULL", ())
-# curr.execute("INSERT INTO Players(NAME) VALUES (?)", ("Knight",))
-# conn.commit()
 teams = ["HLE", "GenG" , "T1", "DK", "KT", "FOX", "KDF", "NS", "DRX", "BRO"]
 teamMap = {}
 start_team_record = {}
-for team in teams:
-    teamMap[team] = curr.execute("SELECT * FROM Players WHERE TEAM = (?)", (team,)).fetchall()
-    start_team_record[team]= [0,0]
-# curr.execute("UPDATE Players SET OVERALL = (?) WHERE TRADING IS NULL", (60,))
+selected_stats = ["Name", "Overall", "Trading", "Teamfighting", "Vision", "Roaming", "Farming", "Sidelaning", "Motivation"]
+stats = ', '.join(selected_stats)
+# curr.execute("UPDATE PLAYERS SET Trading = ?, Teamfighting = ?, Vision = ?, Roaming = ?, Farming = ?, Sidelaning = ? WHERE TEAM = ?", (64,64,64,64,64,64, "DK"))
 # conn.commit()
+for team in teams:
+    teamMap[team] = curr.execute(f"SELECT {stats} FROM Players WHERE TEAM = (?)", (team,)).fetchall()
+    start_team_record[team]= [0,0]
 def setRecord():
    for team in teams:
        start_team_record[team]= [0,0]
+# for team, players in teamMap.items():
+#     curr.execute("UPDATE TEAMS SET Top = ?, Jg = ?, Mid = ?, Adc = ?, Sup = ? WHERE NAME = ?", (players[0][0], players[1][0], players[2][0], players[3][0], players[4][0], team))
 def overallCalc():
     for team in teams:
+        team_overall_list = []
         for player in teamMap[team]:
             stats = []
             name = player[0]
-            for stat in player:
-                if type(stat) is int:
-                    stats.append(stat)
+            for stat in range(2,len(player)):
+                if type(player[stat]) is int:
+                    stats.append(player[stat])
             if len(stats)>0:
-                overall = statistics.mean(stats)
+                overall = round(statistics.mean(stats))
+                team_overall_list.append(overall)
                 curr.execute("UPDATE Players SET OVERALL = (?) WHERE NAME = (?)", (overall, name, ))
                 conn.commit()
+        if len(team_overall_list)>1:
+            team_overall = statistics.mean(team_overall_list)
+            curr.execute("UPDATE Teams SET OVERALL = (?) WHERE NAME = (?)", (team_overall, team, ))
+            conn.commit()
 overallCalc()
 
 def Game(team1, team2):
-    #take overalls of team members of each team and add to a list
-    team1Ratings = []
-    team2Ratings = []
-    for player in teamMap[team1]:
-        team1Ratings.append(player[1])
-    for player in teamMap[team2]:
-        team2Ratings.append(player[1])
-    
-    #find team overall by averaging player overalls
-    team1Overall = statistics.mean(team1Ratings)
-    team2Overall = statistics.mean(team2Ratings)
+    #select team overall from the database
+    conn = sqlite3.connect("lolmanager.db")
+    curr = conn.cursor()
+    team1Overall = curr.execute("SELECT OVERALL FROM Teams WHERE NAME = (?)", (team1,)).fetchone()[0]
+    team2Overall = curr.execute("SELECT OVERALL FROM Teams WHERE NAME = (?)", (team2,)).fetchone()[0]
+    conn.close()
     #set variables to specific values for next part depending on which team has greater overall
     if team1Overall>team2Overall:
         greater = team1Overall
@@ -216,8 +218,6 @@ def save_season_results(year, mvp, standings, champion):
 def split(year):
     values = {}
     print(year, "split")
-#code to schedule a round robin that makes a round robin schedule for the league and then calls bo3 on every match, it also updates the team_record dictionary created earlier with wins and losses based on results
-    #sorts the teams records by wins in order to find standings
     playoff_teams, MVP, standings = regular_split_end(year)
     values["playoff_teams"] = playoff_teams
     values["MVP"] = MVP
@@ -254,3 +254,41 @@ def get_season_history():
     conn.close()
     
     return jsonify(seasons_data)
+@app.route('/rosters', methods=['GET'])
+def get_team_rosters():
+    conn = sqlite3.connect("lolmanager.db")
+    curr = conn.cursor()
+    # Retrieve all seasons from the database
+    curr.execute("SELECT * FROM Teams")
+    teams = curr.fetchall()
+
+    # Convert the result into a list of dictionaries
+    team_rosters = []
+    for team in teams:
+        curr.execute("SELECT * FROM Players WHERE NAME = ?", (team[1],))
+        top_stats = curr.fetchall()
+        curr.execute("SELECT * FROM Players WHERE NAME = ?", (team[2],))
+        jg_stats = curr.fetchall()
+        curr.execute("SELECT * FROM Players WHERE NAME = ?", (team[3],))
+        mid_stats = curr.fetchall()
+        curr.execute("SELECT * FROM Players WHERE NAME = ?", (team[4],))
+        adc_stats = curr.fetchall()
+        curr.execute("SELECT * FROM Players WHERE NAME = ?", (team[5],))
+        sup_stats = curr.fetchall()
+        team_rosters.append({
+            "name": team[0],
+            "top": team[1],
+            "jg": team[2],
+            "mid": team[3],
+            "adc": team[4],
+            "sup": team[5],
+            "top_stats": top_stats,
+            "jg_stats": jg_stats,
+            "mid_stats": mid_stats,
+            "adc_stats": adc_stats,
+            "sup_stats": sup_stats
+        })
+
+    conn.close()
+    
+    return jsonify(team_rosters)
