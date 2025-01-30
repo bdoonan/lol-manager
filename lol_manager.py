@@ -2,74 +2,37 @@ import random
 import sqlite3
 import statistics
 import json
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
-# conn = sqlite3.connect("lolmanager.db")
-# curr = conn.cursor()
-# curr.execute("DELETE FROM History")
-#curr.execute("DELETE FROM Saved_Sims")
-#curr.execute("DELETE FROM Players_Sims")
+conn = sqlite3.connect("lolmanager.db")
+curr = conn.cursor()
+#curr.execute("DELETE FROM History")
 #conn.commit()
+
 teams = ["HLE", "GenG" , "T1", "DK", "KT", "FOX", "KDF", "NS", "DRX", "BRO"]
 teamMap = {}
 start_team_record = {}
 # curr.execute("UPDATE PLAYERS SET Trading = ?, Teamfighting = ?, Vision = ?, Roaming = ?, Farming = ?, Sidelaning = ? WHERE TEAM = ?", (64,64,64,64,64,64, "DK"))
 # conn.commit()
-def makeTeams(sim_id):
-    conn = sqlite3.connect("lolmanager.db")
-    curr = conn.cursor()
-    selected_stats = ["Name", "Overall", "Trading", "Teamfighting", "Vision", "Roaming", "Farming", "Sidelaning", "Motivation"]
-    stats = ', '.join(selected_stats)
-    for team in teams:
-        teamMap[team] = curr.execute(f"SELECT {stats} FROM Players_Sims WHERE TEAM = (?) AND ID = (?)", (team,sim_id)).fetchall()
-    return teamMap
 def startSim(name):
     conn = sqlite3.connect("lolmanager.db")
     curr = conn.cursor()
     year = 2025
-    curr.execute("INSERT INTO Saved_Sims(Name, Year) VALUES (?,?)", (name, year))
+    curr.execute("INSERT INTO Saved_Sims(Save Name, Year) VALUES, " ( name, year))
     conn.commit()
-    curr.execute("SELECT Id FROM Saved_Sims WHERE Name = ?", (name,))
-    id = curr.fetchone()[0]
-    curr.execute('''
-    INSERT INTO Players_Sims (ID, Name, Overall, Trading, Teamfighting, Vision, Roaming, Farming, Sidelaning, Shotcalling, Creativity, Teamwork, Loyalty, Consistency, Team, Motivation, Role, Age, "Military Exemption", "Contract years", "Contract amount", Potential)
-    SELECT ?, Name, Overall, Trading, Teamfighting, Vision, Roaming, Farming, Sidelaning, Shotcalling, Creativity, Teamwork, Loyalty, Consistency, Team, Motivation, Role, Age, "Military Exemption", "Contract years", "Contract amount", Potential
-    FROM Players
-    ''', (id,))
-    curr.execute('''
-    INSERT INTO Teams_Sims (Id, Name, Top, Jg, Mid, Adc, Sup, Prestige, Overall)
-    SELECT ?, Name, Top, Jg, Mid, Adc, Sup, Prestige, Overall
-    FROM Teams             
-    ''', (id,))
-    conn.commit()
-    return id
-def loadSim(name):
-    conn = sqlite3.connect("lolmanager.db")
-    curr = conn.cursor()
-    curr.execute("SELECT Id FROM Saved_Sims WHERE Name = ?", (name,))
-    id = curr.fetchone()[0]
-    return id   
-def deleteSim(name):
-    conn = sqlite3.connect("lolmanager.db")
-    curr = conn.cursor()
-    curr.execute("SELECT Id FROM Saved_Sims WHERE Name = ?", (name,))
-    id = curr.fetchone()[0]
-    curr.execute("DELETE FROM Saved_Sims WHERE ID = ?", (id,))
-    curr.execute("DELETE FROM Players_Sims WHERE ID = ?", (id,))
-    curr.execute("DELETE FROM Teams_Sims WHERE ID = ?", (id,))
-    conn.commit()
-    conn.close()
+startSim("save1")
 def setRecord():
    for team in teams:
        start_team_record[team]= [0,0]
 # for team, players in teamMap.items():
 #     curr.execute("UPDATE TEAMS SET Top = ?, Jg = ?, Mid = ?, Adc = ?, Sup = ? WHERE NAME = ?", (players[0][0], players[1][0], players[2][0], players[3][0], players[4][0], team))
 setRecord()
-def overallCalc(sim_id):
-    conn = sqlite3.connect("lolmanager.db")
-    curr = conn.cursor()
-    teamMap = makeTeams(sim_id)
+selected_stats = ["Name", "Overall", "Trading", "Teamfighting", "Vision", "Roaming", "Farming", "Sidelaning", "Motivation"]
+stats = ', '.join(selected_stats)
+for team in teams:
+    teamMap[team] = curr.execute(f"SELECT {stats} FROM Players WHERE TEAM = (?)", (team,)).fetchall()
+def overallCalc():
     for team in teams:
         team_overall_list = []
         for player in teamMap[team]:
@@ -81,19 +44,20 @@ def overallCalc(sim_id):
             if len(stats)>0:
                 overall = round(statistics.mean(stats))
                 team_overall_list.append(overall)
-                curr.execute("UPDATE Players_Sims SET OVERALL = (?) WHERE NAME = (?) AND ID = (?)", (overall, name, sim_id,))
+                curr.execute("UPDATE Players SET OVERALL = (?) WHERE NAME = (?)", (overall, name, ))
                 conn.commit()
         if len(team_overall_list)>1:
             team_overall = statistics.mean(team_overall_list)
-            curr.execute("UPDATE Teams_Sims SET OVERALL = (?) WHERE NAME = (?) AND ID = (?)", (team_overall, team, sim_id,))
+            curr.execute("UPDATE Teams SET OVERALL = (?) WHERE NAME = (?)", (team_overall, team, ))
             conn.commit()
-    conn.close()
-@app.route('/<int:id>/year', methods=['GET'])
-def get_year(id):
+overallCalc()
+@app.route('/year', methods=['GET'])
+def get_year():
     conn = sqlite3.connect("lolmanager.db")
     curr = conn.cursor()
+    
 
-    curr.execute("SELECT MAX(year) FROM History WHERE ID = (?)", (id,))
+    curr.execute("SELECT MAX(year) FROM History")
     year = curr.fetchone()[0]  # Get the latest year from the query result
     conn.close()
     
@@ -102,13 +66,12 @@ def get_year(id):
         return {"year": 2025}
     #else return the current year + 1
     return {"year": year+1}
-def Game(sim_id,team1, team2):
-    
+def Game(team1, team2):
     #select team overall from the database
     conn = sqlite3.connect("lolmanager.db")
     curr = conn.cursor()
-    team1Overall = curr.execute("SELECT OVERALL FROM Teams_Sims WHERE NAME = (?) AND ID = (?)", (team1,sim_id,)).fetchone()[0]
-    team2Overall = curr.execute("SELECT OVERALL FROM Teams_Sims WHERE NAME = (?) AND ID = (?)", (team2,sim_id,)).fetchone()[0]
+    team1Overall = curr.execute("SELECT OVERALL FROM Teams WHERE NAME = (?)", (team1,)).fetchone()[0]
+    team2Overall = curr.execute("SELECT OVERALL FROM Teams WHERE NAME = (?)", (team2,)).fetchone()[0]
     conn.close()
     #set variables to specific values for next part depending on which team has greater overall
     if team1Overall>team2Overall:
@@ -160,10 +123,10 @@ def Game(sim_id,team1, team2):
                 return opp_team
 
 #code to simulate a BO3 for the regular spit by calling the game function until one team wins 2 games
-def BO3(sim_id, team1, team2):
+def BO3(team1, team2):
     team1_wins, team2_wins = 0, 0
     while team1_wins < 2 and team2_wins < 2:
-        result = Game(sim_id, team1, team2)
+        result = Game(team1, team2)
         if result == team1:
             team1_wins+=1
         else:
@@ -173,10 +136,10 @@ def BO3(sim_id, team1, team2):
     else:
         return team2, team1
 #same as bo3 but now for bo5
-def BO5(sim_id, team1, team2):
+def BO5(team1, team2):
     team1_wins, team2_wins = 0, 0
     while team1_wins < 3 and team2_wins < 3:
-        result = Game(sim_id, team1, team2)
+        result = Game(team1, team2)
         if result == team1:
             team1_wins+=1
         else:
@@ -185,7 +148,7 @@ def BO5(sim_id, team1, team2):
         return team1 , team2, str(team1_wins) + ":" + str(team2_wins)
     else:
         return team2 , team1, str(team2_wins) + ":" + str(team1_wins)
-def round_robin(sim_id, teams, start_team_record):
+def round_robin(teams, start_team_record):
         team_record = start_team_record.copy()
         n = len(teams)
         matchs = []
@@ -203,13 +166,12 @@ def round_robin(sim_id, teams, start_team_record):
 
         for fixture in fixtures:
             for game in fixture:
-                result = BO3(sim_id, game[0], game[1])
+                result = BO3(game[0], game[1])
                 team_record[result[0]][0] += 1
                 team_record[result[1]][1] += 1
         return team_record
-def regular_split_end(sim_id):
-        teamMap = makeTeams(sim_id)
-        team_record = round_robin(sim_id, teams, start_team_record)
+def regular_split_end(year):
+        team_record = round_robin(teams, start_team_record)
         playoff_teams=[]
         standings = []
         sorted_dict = dict(sorted(team_record.items(), key=lambda item: item[1][0], reverse=True))
@@ -225,63 +187,63 @@ def regular_split_end(sim_id):
                 curr_MVP = player[0]
                 max = player[1]
         return playoff_teams, curr_MVP, standings
-def playoffs(sim_id, playoff_teams):
+def playoffs(playoff_teams):
         curr_teams = playoff_teams.copy()
-        res1 = BO5(sim_id, curr_teams[2], curr_teams[5])
-        res2 = BO5(sim_id, curr_teams[3], curr_teams[4])
+        res1 = BO5(curr_teams[2], curr_teams[5])
+        res2 = BO5(curr_teams[3], curr_teams[4])
         #remove losers
         curr_teams.remove(res1[1])
         curr_teams.remove(res2[1])
         #remove losers
-        res1 = BO5(sim_id, curr_teams[0], curr_teams[3])
-        res2 = BO5(sim_id, curr_teams[1], curr_teams[2])
+        res1 = BO5(curr_teams[0], curr_teams[3])
+        res2 = BO5(curr_teams[1], curr_teams[2])
         
         curr_teams.remove(res1[1])
         curr_teams.remove(res2[1])
         #finals
-        res1 = BO5(sim_id, curr_teams[0], curr_teams[1])
+        res1 = BO5(curr_teams[0], curr_teams[1])
         curr_teams.remove(res1[1])
         return curr_teams
-def save_season_results(sim_id, year, mvp, standings, champion):
+def save_season_results(year, mvp, standings, champion):
     conn = sqlite3.connect("lolmanager.db")
     curr = conn.cursor()
     # Prepare the data for insertion
     curr.execute("""
-        INSERT INTO History (year, mvp, standings, champion, id)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO History (year, mvp, standings, champion)
+        VALUES (?, ?, ?, ?)
     """, (
         year,
         mvp,
         json.dumps(standings),  # Convert list to JSON string
-        champion,
-        sim_id
+        champion
     ))
 
     conn.commit()
+    curr.close()
     conn.close()
-def split(sim_id, year):
+def split(year):
     values = {}
-    playoff_teams, MVP, standings = regular_split_end(sim_id)
+    playoff_teams, MVP, standings = regular_split_end(year)
     values["playoff_teams"] = playoff_teams
     values["MVP"] = MVP
     values["standings"] = standings
-    champion = playoffs(sim_id, playoff_teams)
-    save_season_results(sim_id, year, MVP, standings, champion[0])
+    champion = playoffs(playoff_teams)
+    save_season_results(year, MVP, standings, champion[0])
     setRecord()
     #simple playoff format, will change eventually to account for various factors but in this simulation the lowest seed always plays the highest seed
     values["champion"] = champion[0]
     return values
-@app.route('/split/<int:id>/<int:year>', methods=('GET', 'POST'))
-def split_data(id, year):
-    values = split(id, year)
+@app.route('/split/<int:year>', methods=('GET', 'POST'))
+def split_data(year):
+    values = split(year)
     return json.dumps(values)
-@app.route('/<int:id>/season_history', methods=['GET'])
-def get_season_history(id):
+@app.route('/season_history', methods=['GET'])
+def get_season_history():
     conn = sqlite3.connect("lolmanager.db")
     curr = conn.cursor()
 
     # Retrieve all seasons from the database
-    curr.execute("SELECT * FROM History WHERE ID = (?) ORDER BY year DESC", (id,))
+    curr.execute("SELECT * FROM History ORDER BY year DESC")
     seasons = curr.fetchall()
 
     # Convert the result into a list of dictionaries
@@ -297,8 +259,8 @@ def get_season_history(id):
     conn.close()
     
     return jsonify(seasons_data)
-@app.route('/<int:id>/rosters', methods=['GET'])
-def get_team_rosters(id):
+@app.route('/rosters', methods=['GET'])
+def get_team_rosters():
     conn = sqlite3.connect("lolmanager.db")
     curr = conn.cursor()
     # Retrieve all seasons from the database
@@ -308,15 +270,15 @@ def get_team_rosters(id):
     # Convert the result into a list of dictionaries
     team_rosters = []
     for team in teams:
-        curr.execute("SELECT * FROM Players_Sims WHERE NAME = ? AND ID = ?", (team[1],id,))
+        curr.execute("SELECT * FROM Players WHERE NAME = ?", (team[1],))
         top_stats = curr.fetchall()
-        curr.execute("SELECT * FROM Players_Sims WHERE NAME = ? AND ID = ?", (team[2],id,))
+        curr.execute("SELECT * FROM Players WHERE NAME = ?", (team[2],))
         jg_stats = curr.fetchall()
-        curr.execute("SELECT * FROM Players_Sims WHERE NAME = ? AND ID = ?", (team[3],id,))
+        curr.execute("SELECT * FROM Players WHERE NAME = ?", (team[3],))
         mid_stats = curr.fetchall()
-        curr.execute("SELECT * FROM Players_Sims WHERE NAME = ? AND ID = ?", (team[4],id,))
+        curr.execute("SELECT * FROM Players WHERE NAME = ?", (team[4],))
         adc_stats = curr.fetchall()
-        curr.execute("SELECT * FROM Players_Sims WHERE NAME = ? AND ID = ?", (team[5],id,))
+        curr.execute("SELECT * FROM Players WHERE NAME = ?", (team[5],))
         sup_stats = curr.fetchall()
         team_rosters.append({
             "name": team[0],
@@ -335,17 +297,3 @@ def get_team_rosters(id):
     conn.close()
     
     return jsonify(team_rosters)
-@app.route('/start_sim', methods=['POST'])
-def start_sim():
-    data = request.get_json()
-    sim_name = data.get('simulationName')
-    sim_id = startSim(sim_name)  # Call your startSim function
-    return jsonify({'simulationId': sim_id})
-
-@app.route('/load_sim/<sim_name>', methods=['GET'])
-def load_sim(sim_name):
-    sim_id = loadSim(sim_name)
-    return jsonify({'simulationId': sim_id})
-@app.route('/delete_sim/<sim_name>', methods=['GET'])
-def delete_sim(sim_name):
-    deleteSim(sim_name)

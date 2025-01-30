@@ -1,37 +1,97 @@
 import React, { useState, useEffect } from 'react';
 
 function App() {
-  const [year, setYear] = useState(2024); // Default to 2024
+  const [year, setYear] = useState(2025); // Default to 2024
   const [splitData, setSplitData] = useState(null);
   const [seasonHistory, setSeasonHistory] = useState([]);
   const [teams, setTeams] = useState([]); // Holds the fetched team rosters
   const [currentTeamIndex, setCurrentTeamIndex] = useState(0); // Tracks which team's roster to display
   const [showRoster, setShowRoster] = useState(false); // Toggles between roster view and original view
   const [showHistory, setShowHistory] = useState(false); // Toggles between season history view and original view
+  const [simulationId, setSimulationId] = useState(null); // Tracks the simulation ID
+  const [simulationName, setSimulationName] = useState(''); // Tracks the simulation name
+  
+  const startSim = async () => {
+    try {
+      const response = await fetch('/start_sim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ simulationName })
+      });
 
-  // Fetch team rosters from the backend
+      const data = await response.json();
+      if (response.ok) {
+        setSimulationId(data.simulationId);  // Set the simulation ID from the backend
+        console.log(`New simulation started with ID: ${data.simulationId}`);
+      } else {
+        console.error('Error starting simulation:', data.error);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+  const loadSim = async (name) => {
+    try {
+      const response = await fetch(`/load_sim/${name}`);  // Adjust backend route to load the simulation
+      const data = await response.json();
+
+      if (response.ok) {
+        setSimulationId(data.simulationId);
+        setTeams(data.roster);  // Assuming the roster is included in the response
+        setSeasonHistory(data.history);  // Assuming the season history is included in the response
+        console.log(`Loaded simulation with ID: ${data.simulationId}`);
+      } else {
+        console.error('Error loading simulation:', data.error);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+  const handleNameChange = (e) => {
+    setSimulationName(e.target.value);
+  };
+  const handleLoad = (e) => {
+    e.preventDefault(); // Prevent any default form submission behavior
+    if (simulationName.trim()) {
+      loadSim(simulationName); // Pass the simulationName to the function
+    } else {
+      console.log("Please enter a simulation name");
+    }
+  }; 
+  // Fetch team data and year data from backend
   useEffect(() => {
+    if (!simulationId) return;
     const fetchTeams = async () => {
       try {
-        const response = await fetch('/rosters');
-        if (!response.ok) {
+        //try to fetch roster data and put into array
+        const roster_response = await fetch(`/${simulationId}/rosters`);
+        if (!roster_response.ok) {
           throw new Error('Failed to fetch team rosters');
         }
-        const data = await response.json();
-        setTeams(data); // Set the fetched team data to state
+        const roster_data = await roster_response.json();
+        setTeams(roster_data);
+
+        //Now we repeat for the year
+        const year_response = await fetch(`/${simulationId}/year`);
+        if (!year_response.ok) {
+          throw new Error('Failed to fetch team rosters');
+        }
+        const year_data = await year_response.json();
+        setYear(year_data.year);
       } catch (error) {
-        console.error('Error fetching team rosters:', error);
+        console.error('Error fetching data:', error);
       }
+      
     };
 
     fetchTeams(); // Fetch team rosters when the component mounts
-  }, []);
+  }, [simulationId]);
 
   // Function to simulate a new season (new split)
   const handleSplitClick = async () => {
     try {
       // Send a GET request to your Flask server to trigger the new split for the next year
-      const response = await fetch(`/split/${year}`);
+      const response = await fetch(`/split/${simulationId}/${year}`);
       const data = await response.json();
 
       // Set the result data to display
@@ -47,7 +107,7 @@ function App() {
   // Function to fetch the season history from the backend
   const fetchSeasonHistory = async () => {
     try {
-      const response = await fetch('/season_history');
+      const response = await fetch(`/${simulationId}/season_history`);
       if (!response.ok) {
         throw new Error('Failed to fetch season history');
       }
@@ -71,9 +131,33 @@ function App() {
   return (
     <div>
       <h1>League Manager</h1>
+      
+      {/* Show Start Sim and Load Sim buttons on startup */}
+      {!simulationId ? (
+        <div>
+          <h2>Start a New Simulation</h2>
+          <input
+            type="text"
+            placeholder="Enter Simulation Name"
+            value={simulationName}
+            onChange={handleNameChange} // Update simulation name
+          />
+          <button onClick={startSim}>Start Sim</button>
 
-      {/* Button to simulate a new split */}
+          {/* Or Load an Existing Simulation (you can implement similar functionality for this) */}
+          <h2>Or Load an Existing Simulation</h2>
+          <input
+            type="text"
+            placeholder="Enter Simulation Name"
+            value={simulationName}
+            onChange={handleNameChange}
+          />
+          <button onClick={handleLoad}>Load Sim</button>
+        </div>
+      ) : (
       <div>
+      {/* Button to simulate a new split */}
+        <div>
         <h2>Start New Split</h2>
         <button onClick={handleSplitClick}>Start Split for {year}</button>
 
@@ -92,7 +176,6 @@ function App() {
           </div>
         )}
       </div>
-
       <hr />
 
       {/* Button to view season history */}
@@ -247,7 +330,10 @@ function App() {
         )}
       </div>
     </div>
+      )}
+    </div>
   );
 }
 
 export default App;
+
