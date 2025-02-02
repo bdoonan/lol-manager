@@ -1,4 +1,3 @@
 # lol-manager
  
-This is a manager simulator game that I am working on. Currently it is barely fleshed out as it just simulates the whole of one year. I am currently
-learning how to use react in the frontend and call an api made with the flask backend for MVP, playoff teams, and champion.
+This is a manager simulator game that I am working on. Currently it is barely fleshed out as it just simulates the whole of one year. I am currently learning how to use react in the frontend and call an api made with the flask backend for MVP, playoff teams, and champion. To run the application make sure that flask is installed in venv in the backend. Also make sure react and yarn are installed to run the programs. To run the program use two command prompt windows. In both you need to be in the lol-manager file. To run the frontend use the command yarn start and to run the backend server use the command yarn start-api. To run the backend in debug mode you can use the command start-api-dev instead if you want to edit the flask file.
