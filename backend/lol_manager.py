@@ -50,6 +50,7 @@ def startSim(name):
     FROM Teams             
     ''', (id,))
     conn.commit()
+    conn.close()
     #return the id so that we can send the id to the frontend so it knows what id to reference
     return id
 def loadSim(name):
@@ -58,6 +59,7 @@ def loadSim(name):
     #get the existing id where the entered name is and return it
     curr.execute("SELECT Id FROM Saved_Sims WHERE Name = ?", (name,))
     id = curr.fetchone()[0]
+    conn.close()
     return id   
 def deleteSim(name):
     #delete from all tables all elements with the sim name's id
@@ -70,6 +72,7 @@ def deleteSim(name):
     curr.execute("DELETE FROM Teams_Sims WHERE ID = ?", (id,))
     conn.commit()
     conn.close()
+    return id
 def setRecord():
    #set record back to start of season
    for team in teams:
@@ -393,4 +396,5 @@ def load_sim(sim_name):
 #deletes the sim with the inputted name from all database tables
 @app.route('/delete_sim/<sim_name>', methods=['GET'])
 def delete_sim(sim_name):
-    deleteSim(sim_name)
+    sim_id = deleteSim(sim_name)
+    return jsonify({'simulationId': sim_id})

@@ -9,14 +9,15 @@ function App() {
   const [showRoster, setShowRoster] = useState(false); // Toggles between roster view and original view
   const [showHistory, setShowHistory] = useState(false); // Toggles between season history view and original view
   const [simulationId, setSimulationId] = useState(null); // Tracks the simulation ID
-  const [simulationName, setSimulationName] = useState(''); // Tracks the simulation name
-  
+  const [saveSimulationName, setSaveSimulationName] = useState(''); // Tracks the simulation name
+  const [loadSimulationName, setLoadSimulationName] = useState('');
+  const [deleteSimulationName, setDeleteSimulationName] = useState('');
   const startSim = async () => {
     try {
       const response = await fetch('/start_sim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ simulationName })
+        body: JSON.stringify({ saveSimulationName })
       });
 
       const data = await response.json();
@@ -47,13 +48,41 @@ function App() {
       console.error('Error:', error);
     }
   };
-  const handleNameChange = (e) => {
-    setSimulationName(e.target.value);
+  const deleteSim = async (name) => {
+    try {
+      const response = await fetch(`/delete_sim/${name}`);  // Adjust backend route to load the simulation
+      const data = await response.json();
+
+      if (response.ok) {
+        console.log(`Deleted simulation with ID: ${data.simulationId}`);
+      } else {
+        console.error('Error deleted simulation:', data.error);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+  const handleSaveChange = (e) => {
+    setSaveSimulationName(e.target.value);
+  };
+  const handleLoadChange = (e) => {
+    setLoadSimulationName(e.target.value);
+  };
+  const handleDeleteChange = (e) => {
+    setDeleteSimulationName(e.target.value);
   };
   const handleLoad = (e) => {
     e.preventDefault(); // Prevent any default form submission behavior
-    if (simulationName.trim()) {
-      loadSim(simulationName); // Pass the simulationName to the function
+    if (loadSimulationName.trim()) {
+      loadSim(loadSimulationName); // Pass the simulationName to the function
+    } else {
+      console.log("Please enter a simulation name");
+    }
+  }; 
+  const handleDelete = (e) => {
+    e.preventDefault(); // Prevent any default form submission behavior
+    if (deleteSimulationName.trim()) {
+      deleteSim(deleteSimulationName); // Pass the simulationName to the function
     } else {
       console.log("Please enter a simulation name");
     }
@@ -132,27 +161,37 @@ function App() {
     <div>
       <h1>League Manager</h1>
       
-      {/* Show Start Sim and Load Sim buttons on startup */}
+      {/* Show Start Sim, Load Sim, and Delete Sim buttons on startup */}
       {!simulationId ? (
         <div>
           <h2>Start a New Simulation</h2>
           <input
             type="text"
             placeholder="Enter Simulation Name"
-            value={simulationName}
-            onChange={handleNameChange} // Update simulation name
+            value={saveSimulationName}
+            onChange={handleSaveChange}
           />
           <button onClick={startSim}>Start Sim</button>
 
-          {/* Or Load an Existing Simulation (you can implement similar functionality for this) */}
           <h2>Or Load an Existing Simulation</h2>
           <input
             type="text"
             placeholder="Enter Simulation Name"
-            value={simulationName}
-            onChange={handleNameChange}
+            value={loadSimulationName}
+            onChange={handleLoadChange}
           />
           <button onClick={handleLoad}>Load Sim</button>
+          
+          <h2>Or Delete an Existing Simulation</h2>
+          <input
+            type="text"
+            placeholder="Enter Simulation Name"
+            value={deleteSimulationName}
+            onChange={handleDeleteChange}
+          />
+          <button onClick={handleDelete}>Delete</button>
+
+
         </div>
       ) : (
       <div>
