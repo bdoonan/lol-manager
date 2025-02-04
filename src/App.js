@@ -17,7 +17,7 @@ function App() {
       const response = await fetch('/start_sim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ saveSimulationName })
+        body: JSON.stringify({ simulationName: saveSimulationName })
       });
 
       const data = await response.json();
