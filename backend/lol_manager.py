@@ -70,6 +70,7 @@ def deleteSim(name):
     curr.execute("DELETE FROM Saved_Sims WHERE ID = ?", (id,))
     curr.execute("DELETE FROM Players_Sims WHERE ID = ?", (id,))
     curr.execute("DELETE FROM Teams_Sims WHERE ID = ?", (id,))
+    curr.execute("DELETE FROM History WHERE ID = ?", (id,))
     conn.commit()
     conn.close()
     return id
