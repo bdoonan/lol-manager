@@ -12,6 +12,11 @@ app.config['JSON_SORT_KEYS'] = False
 #curr.execute("DELETE FROM Players_Sims")
 #conn.commit()
 #create a teamMap and recordMap for the teams
+# conn = sqlite3.connect("lolmanager.db")
+# curr = conn.cursor()
+# curr.execute("UPDATE PLAYERS SET [Military Exemption] = 'No' WHERE [Military Exemption] IS NULL")
+# conn.commit()
+# conn.close()
 teams = ["HLE", "GenG" , "T1", "DK", "KT", "FOX", "KDF", "NS", "DRX", "BRO"]
 teamMap = {}
 start_team_record = {}
@@ -310,11 +315,19 @@ def split(sim_id, year):
     #simple playoff format, will change eventually to account for various factors but in this simulation the lowest seed always plays the highest seed
     values["champion"] = champion[0]
     return values
+def offseason(sim_id):
+    conn = sqlite3.connect("lolmanager.db")
+    curr = conn.cursor()
+    curr.execute("UPDATE Players_Sims SET Age = Age+1 WHERE Id = (?)", (sim_id,))
+    conn.commit()
+    conn.close()
+    return sim_id
 #returns the split values to the api endpoint to be called and retrieved in the frontend
 @app.route('/split/<int:id>/<int:year>', methods=('GET', 'POST'))
 def split_data(id, year):
     #simulate the season for the current sim
     values = split(id, year)
+    offseason(id)
     return json.dumps(values)
 #returns history starting from the lastest year to the api endpoint to be retrieved in the frontend
 @app.route('/<int:id>/season_history', methods=['GET'])
