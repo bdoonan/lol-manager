@@ -5,18 +5,7 @@ import json
 from flask import Flask, jsonify, request
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
-# conn = sqlite3.connect("lolmanager.db")
-# curr = conn.cursor()
-# curr.execute("DELETE FROM History")
-#curr.execute("DELETE FROM Saved_Sims")
-#curr.execute("DELETE FROM Players_Sims")
-#conn.commit()
 #create a teamMap and recordMap for the teams
-# conn = sqlite3.connect("lolmanager.db")
-# curr = conn.cursor()
-# curr.execute("UPDATE PLAYERS SET [Military Exemption] = 'No' WHERE [Military Exemption] IS NULL")
-# conn.commit()
-# conn.close()
 teams = ["HLE", "GenG" , "T1", "DK", "KT", "FOX", "KDF", "NS", "DRX", "BRO"]
 teamMap = {}
 start_team_record = {}
@@ -44,8 +33,8 @@ def startSim(name):
     id = curr.fetchone()[0]
     #insert all elements from the original players table into players_sims table with the generated id to identify which sim these players come from 
     curr.execute('''
-    INSERT INTO Players_Sims (ID, Name, Overall, Trading, Teamfighting, Vision, Roaming, Farming, Sidelaning, Shotcalling, Creativity, Teamwork, Loyalty, Consistency, Team, Motivation, Role, Age, "Military Exemption", "Contract years", "Contract amount", Potential)
-    SELECT ?, Name, Overall, Trading, Teamfighting, Vision, Roaming, Farming, Sidelaning, Shotcalling, Creativity, Teamwork, Loyalty, Consistency, Team, Motivation, Role, Age, "Military Exemption", "Contract years", "Contract amount", Potential
+    INSERT INTO Players_Sims (Name, Overall, Trading, Teamfighting, Vision, Roaming, Farming, Sidelaning, Shotcalling, Creativity, Teamwork, Loyalty, Consistency, Team, Motivation, Role, Age, "Military Exemption", "Contract years", "Contract amount", Potential, ID)
+    SELECT Name, Overall, Trading, Teamfighting, Vision, Roaming, Farming, Sidelaning, Shotcalling, Creativity, Teamwork, Loyalty, Consistency, Team, Motivation, Role, Age, "Military Exemption", "Contract years", "Contract amount", Potential, ?
     FROM Players
     ''', (id,))
     #do the same thing for teams that was done for the players
