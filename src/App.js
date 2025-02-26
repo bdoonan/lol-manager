@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 function App() {
-  const [year, setYear] = useState(2025); // Default to 2024
+  const [year, setYear] = useState(2025); // Default to 2025
   const [splitData, setSplitData] = useState(null);
   const [seasonHistory, setSeasonHistory] = useState([]);
   const [teams, setTeams] = useState([]); // Holds the fetched team rosters
@@ -12,6 +12,32 @@ function App() {
   const [saveSimulationName, setSaveSimulationName] = useState(''); // Tracks the simulation name
   const [loadSimulationName, setLoadSimulationName] = useState('');
   const [deleteSimulationName, setDeleteSimulationName] = useState('');
+
+  const fetchTeams = useCallback(async () => {
+    if (!simulationId) return;
+    try {
+      const roster_response = await fetch(`/${simulationId}/rosters`);
+      if (!roster_response.ok) {
+        throw new Error('Failed to fetch team rosters');
+      }
+      const roster_data = await roster_response.json();
+      setTeams(roster_data);
+
+      const year_response = await fetch(`/${simulationId}/year`);
+      if (!year_response.ok) {
+        throw new Error('Failed to fetch year data');
+      }
+      const year_data = await year_response.json();
+      setYear(year_data.year);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  }, [simulationId]);
+
+  useEffect(() => {
+    fetchTeams(); // Fetch team rosters when simulationId changes
+  }, [simulationId, fetchTeams]); // Now fetchTeams is stable due to useCallback
+
   const startSim = async () => {
     try {
       const response = await fetch('/start_sim', {
@@ -22,7 +48,7 @@ function App() {
 
       const data = await response.json();
       if (response.ok) {
-        setSimulationId(data.simulationId);  // Set the simulation ID from the backend
+        setSimulationId(data.simulationId); // Set the simulation ID from the backend
         console.log(`New simulation started with ID: ${data.simulationId}`);
       } else {
         console.error('Error starting simulation:', data.error);
@@ -31,15 +57,16 @@ function App() {
       console.error('Error:', error);
     }
   };
+
   const loadSim = async (name) => {
     try {
-      const response = await fetch(`/load_sim/${name}`);  // Adjust backend route to load the simulation
+      const response = await fetch(`/load_sim/${name}`);
       const data = await response.json();
 
       if (response.ok) {
         setSimulationId(data.simulationId);
-        setTeams(data.roster);  // Assuming the roster is included in the response
-        setSeasonHistory(data.history);  // Assuming the season history is included in the response
+        setTeams(data.roster); // Assuming the roster is included in the response
+        setSeasonHistory(data.history); // Assuming the season history is included in the response
         console.log(`Loaded simulation with ID: ${data.simulationId}`);
       } else {
         console.error('Error loading simulation:', data.error);
@@ -48,9 +75,10 @@ function App() {
       console.error('Error:', error);
     }
   };
+
   const deleteSim = async (name) => {
     try {
-      const response = await fetch(`/delete_sim/${name}`);  // Adjust backend route to load the simulation
+      const response = await fetch(`/delete_sim/${name}`);
       const data = await response.json();
 
       if (response.ok) {
@@ -62,72 +90,45 @@ function App() {
       console.error('Error:', error);
     }
   };
+
   const handleSaveChange = (e) => {
     setSaveSimulationName(e.target.value);
   };
+
   const handleLoadChange = (e) => {
     setLoadSimulationName(e.target.value);
   };
+
   const handleDeleteChange = (e) => {
     setDeleteSimulationName(e.target.value);
   };
+
   const handleLoad = (e) => {
-    e.preventDefault(); // Prevent any default form submission behavior
+    e.preventDefault();
     if (loadSimulationName.trim()) {
-      loadSim(loadSimulationName); // Pass the simulationName to the function
+      loadSim(loadSimulationName);
     } else {
       console.log("Please enter a simulation name");
     }
-  }; 
+  };
+
   const handleDelete = (e) => {
-    e.preventDefault(); // Prevent any default form submission behavior
+    e.preventDefault();
     if (deleteSimulationName.trim()) {
-      deleteSim(deleteSimulationName); // Pass the simulationName to the function
+      deleteSim(deleteSimulationName);
     } else {
       console.log("Please enter a simulation name");
     }
-  }; 
-  // Fetch team data and year data from backend
-  useEffect(() => {
-    if (!simulationId) return;
-    const fetchTeams = async () => {
-      try {
-        //try to fetch roster data and put into array
-        const roster_response = await fetch(`/${simulationId}/rosters`);
-        if (!roster_response.ok) {
-          throw new Error('Failed to fetch team rosters');
-        }
-        const roster_data = await roster_response.json();
-        setTeams(roster_data);
-
-        //Now we repeat for the year
-        const year_response = await fetch(`/${simulationId}/year`);
-        if (!year_response.ok) {
-          throw new Error('Failed to fetch team rosters');
-        }
-        const year_data = await year_response.json();
-        setYear(year_data.year);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
-      
-    };
-
-    fetchTeams(); // Fetch team rosters when the component mounts
-  }, [simulationId]);
+  };
 
   // Function to simulate a new season (new split)
   const handleSplitClick = async () => {
     try {
-      // Send a GET request to your Flask server to trigger the new split for the next year
       const response = await fetch(`/split/${simulationId}/${year}`);
       const data = await response.json();
-
-      // Set the result data to display
       setSplitData(data);
-
-      // Increment the year for the next split
       setYear(prevYear => prevYear + 1); // Move to the next year
+      fetchTeams(); // Re-fetch the teams after the split
     } catch (error) {
       console.error('Error fetching split data:', error);
     }
@@ -160,7 +161,7 @@ function App() {
   return (
     <div>
       <h1>League Manager</h1>
-      
+
       {/* Show Start Sim, Load Sim, and Delete Sim buttons on startup */}
       {!simulationId ? (
         <div>
@@ -181,7 +182,7 @@ function App() {
             onChange={handleLoadChange}
           />
           <button onClick={handleLoad}>Load Sim</button>
-          
+
           <h2>Or Delete an Existing Simulation</h2>
           <input
             type="text"
@@ -190,67 +191,65 @@ function App() {
             onChange={handleDeleteChange}
           />
           <button onClick={handleDelete}>Delete</button>
-
-
         </div>
       ) : (
-      <div>
-      {/* Button to simulate a new split */}
         <div>
-        <h2>Start New Split</h2>
-        <button onClick={handleSplitClick}>Start Split for {year}</button>
-
-        {splitData && (
+          {/* Button to simulate a new split */}
           <div>
-            <h3>Results for {year-1} Split:</h3>
-            <p><strong>MVP:</strong> {splitData.MVP}</p>
-            <p><strong>Playoff Teams:</strong> {splitData.playoff_teams.join(', ')}</p>
-            <p><strong>Champion:</strong> {splitData.champion}</p>
-            <h4>Standings:</h4>
-            <ul>
-              {Array.isArray(splitData.standings) && splitData.standings.map((standing, index) => (
-                <li key={index}>{standing}</li>
-              ))}
-            </ul>
+            <h2>Start New Split</h2>
+            <button onClick={handleSplitClick}>Start Split for {year}</button>
+
+            {splitData && (
+              <div>
+                <h3>Results for {year - 1} Split:</h3>
+                <p><strong>MVP:</strong> {splitData.MVP}</p>
+                <p><strong>Playoff Teams:</strong> {splitData.playoff_teams.join(', ')}</p>
+                <p><strong>Champion:</strong> {splitData.champion}</p>
+                <h4>Standings:</h4>
+                <ul>
+                  {Array.isArray(splitData.standings) && splitData.standings.map((standing, index) => (
+                    <li key={index}>{standing}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      <hr />
+          <hr />
 
-      {/* Button to view season history */}
-      <div>
-        <h2>Season History</h2>
-        {!showHistory ? (
-          <button onClick={fetchSeasonHistory}>View Season History</button>
-        ) : (
-          <button onClick={() => setShowHistory(false)}>Close Season History</button>
-        )}
-
-        {showHistory && (
+          {/* Button to view season history */}
           <div>
-            <h3>Season History</h3>
-            <ul>
-              {seasonHistory.map((season, index) => (
-                <li key={index}>
-                  <strong>Year:</strong> {season.year}<br />
-                  <strong>MVP:</strong> {season.mvp}<br />
-                  <strong>Champion:</strong> {season.champion}<br />
-                  <strong>Standings:</strong> {season.standings.join(', ')}
-                  <hr />
-                </li>
-              ))}
-            </ul>
+            <h2>Season History</h2>
+            {!showHistory ? (
+              <button onClick={fetchSeasonHistory}>View Season History</button>
+            ) : (
+              <button onClick={() => setShowHistory(false)}>Close Season History</button>
+            )}
+
+            {showHistory && (
+              <div>
+                <h3>Season History</h3>
+                <ul>
+                  {seasonHistory.map((season, index) => (
+                    <li key={index}>
+                      <strong>Year:</strong> {season.year}<br />
+                      <strong>MVP:</strong> {season.mvp}<br />
+                      <strong>Champion:</strong> {season.champion}<br />
+                      <strong>Standings:</strong> {season.standings.join(', ')}
+                      <hr />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      <hr />
+          <hr />
 
-      {/* Button to toggle roster view */}
-      <div>
-        <button onClick={() => setShowRoster(!showRoster)}>
-          {showRoster ? 'Close Rosters' : 'Show Rosters'}
-        </button>
+          {/* Button to toggle roster view */}
+          <div>
+            <button onClick={() => setShowRoster(!showRoster)}>
+              {showRoster ? 'Close Rosters' : 'Show Rosters'}
+            </button>
 
         {showRoster && teams.length > 0 && (
           <div>
@@ -375,4 +374,3 @@ function App() {
 }
 
 export default App;
-

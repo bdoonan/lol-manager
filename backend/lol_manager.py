@@ -3,14 +3,43 @@ import sqlite3
 import statistics
 import json
 from flask import Flask, jsonify, request
+from stat_change import *
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 #create a teamMap and recordMap for the teams
 teams = ["HLE", "GenG" , "T1", "DK", "KT", "FOX", "KDF", "NS", "DRX", "BRO"]
 teamMap = {}
 start_team_record = {}
-# curr.execute("UPDATE PLAYERS SET Trading = ?, Teamfighting = ?, Vision = ?, Roaming = ?, Farming = ?, Sidelaning = ? WHERE TEAM = ?", (64,64,64,64,64,64, "DK"))
-# conn.commit()
+#this is only used the first time players are added to the database, hence why it's currently commented out
+# conn = sqlite3.connect("lolmanager.db")
+# curr = conn.cursor()
+# selected_stats = ["Name", "Overall", "Trading", "Teamfighting", "Vision", "Roaming", "Farming", "Sidelaning", "Motivation"]
+# stats = ', '.join(selected_stats)
+# for team in teams:
+#     teamMap[team] = curr.execute(f"SELECT {stats} FROM Players WHERE TEAM = (?)", (team,)).fetchall()
+# for team in teams:
+#     team_overall_list = []
+#     for player in teamMap[team]:
+#         stats = []
+#         name = player[0]
+#         #for every player add their numerical stats to the stats array
+#         for stat in range(2,len(player)):
+#             if type(player[stat]) is int:
+#                 stats.append(player[stat])
+#             #if the player has stats average them and round to the nearest whole number
+#         if len(stats)>0:
+#             overall = round(statistics.mean(stats))
+#                 #add the player's overall to the team's overall list to be averaged later
+#             team_overall_list.append(overall)
+#                 #update the player's overall in the sql table
+#             curr.execute("UPDATE Players SET OVERALL = (?) WHERE NAME = (?)", (overall, name,))
+#             conn.commit()
+#         #after doing it for all the players update the team's overall
+#     if len(team_overall_list)>1:
+#         team_overall = statistics.mean(team_overall_list)
+#         curr.execute("UPDATE Teams SET OVERALL = (?) WHERE NAME = (?)", (team_overall, team,))
+#         conn.commit()
+# conn.close()
 #function to create a map for all team and relevant player statistics using sql values
 def makeTeams(sim_id):
     conn = sqlite3.connect("lolmanager.db")
@@ -121,7 +150,6 @@ def get_year(id):
     return {"year": year+1}
 #function to simulate a game
 def Game(sim_id,team1, team2):
-    
     #select team overall from the database
     conn = sqlite3.connect("lolmanager.db")
     curr = conn.cursor()
@@ -293,30 +321,24 @@ def save_season_results(sim_id, year, mvp, standings, champion):
     conn.close()
 #function to simulate a full season
 def split(sim_id, year):
+    overallCalc(sim_id)
     values = {}
     playoff_teams, MVP, standings = regular_split_end(sim_id)
     values["playoff_teams"] = playoff_teams
     values["MVP"] = MVP
     values["standings"] = standings
     champion = playoffs(sim_id, playoff_teams)
+    offseason(sim_id)
     save_season_results(sim_id, year, MVP, standings, champion[0])
     setRecord()
     #simple playoff format, will change eventually to account for various factors but in this simulation the lowest seed always plays the highest seed
     values["champion"] = champion[0]
     return values
-def offseason(sim_id):
-    conn = sqlite3.connect("lolmanager.db")
-    curr = conn.cursor()
-    curr.execute("UPDATE Players_Sims SET Age = Age+1 WHERE Id = (?)", (sim_id,))
-    conn.commit()
-    conn.close()
-    return sim_id
 #returns the split values to the api endpoint to be called and retrieved in the frontend
 @app.route('/split/<int:id>/<int:year>', methods=('GET', 'POST'))
 def split_data(id, year):
     #simulate the season for the current sim
     values = split(id, year)
-    offseason(id)
     return json.dumps(values)
 #returns history starting from the lastest year to the api endpoint to be retrieved in the frontend
 @app.route('/<int:id>/season_history', methods=['GET'])
